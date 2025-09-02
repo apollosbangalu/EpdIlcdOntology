@@ -1,0 +1,400 @@
+SPARQL Queries for EPD Ontology Knowledge Graph Exploration
+
+Query: Find all product types and their classifications
+Purpose: Provide an overview of all product types and their hierarchical classification.
+Importance: Helps users understand the taxonomy structure and product categorization.
+
+
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX epd: <http://www.EpdLcaOntology.com/EpdLcaDataSetOntology/>
+
+SELECT DISTINCT ?productTypeValue ?mainCategory ?subcategory ?classificationDetail
+WHERE {
+    ?classification epd:hasProductTypeCategory ?productTypeValue .
+    OPTIONAL { ?classification epd:hasMainCategory ?mainCategory . }
+    OPTIONAL { ?classification epd:hasSubcategory ?subcategory . }
+    OPTIONAL { ?classification epd:hasClassificationDetail ?classificationDetail . }
+}
+ORDER BY ?mainCategory ?subcategory ?productTypeValue
+
+
+################################################################################################################################
+
+
+
+Query: Find all products by GWP (Global Warming Potential) in ascending order
+Purpose: Compare products based on their climate impact.
+Importance: Helps identify more climate-friendly products within categories.
+
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX epd: <http://www.EpdLcaOntology.com/EpdLcaDataSetOntology/>
+
+SELECT ?name ?nameDetail ?productTypeValue ?gwpValue ?lifeCyclePhaseLabel
+WHERE {
+    ?processDataset rdf:type epd:ProcessDataSet .
+    ?processDataset epd:hasProcessInformation ?processInfo .
+    ?processInfo epd:hasKeyDataSetInformation ?keyInfo .
+    
+    OPTIONAL { ?keyInfo epd:hasName ?name . }
+    OPTIONAL { ?keyInfo epd:hasNameDetail ?nameDetail . }
+    
+    OPTIONAL {
+        ?keyInfo epd:hasClassificationOrCategory ?classification .
+        OPTIONAL { ?classification epd:hasProductTypeCategory ?productTypeValue . }
+    }
+    
+    ?processDataset epd:hasEnvironmentalIndicator ?envIndicator .
+    ?envIndicator epd:hasEnvironmentalImpactIndicators ?impactIndicatorsCollection .
+    ?impactIndicatorsCollection epd:hasEnvironmentalImpactIndicators ?specificIndicator .
+    
+    ?specificIndicator rdfs:label ?indicatorLabel .
+    FILTER(CONTAINS(LCASE(?indicatorLabel), "global warming potential") || 
+           CONTAINS(LCASE(?indicatorLabel), "gwp"))
+    
+    ?specificIndicator epd:hasLifeCyclePhaseValue ?lcPhaseValue .
+    ?lcPhaseValue epd:hasLifeCyclePhase ?lifeCyclePhase .
+    ?lifeCyclePhase rdfs:label ?lifeCyclePhaseLabel .
+    ?lcPhaseValue epd:hasValue ?gwpValue .
+}
+ORDER BY ?gwpValue ?name
+
+################################################################################################################################
+
+
+Query: Count products by main category
+Purpose: Provide a statistical overview of the dataset.
+Importance: Shows distribution of products across categories.
+
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX epd: <http://www.EpdLcaOntology.com/EpdLcaDataSetOntology/>
+
+SELECT ?mainCategory (COUNT(DISTINCT ?processDataset) AS ?productCount)
+WHERE {
+    ?processDataset rdf:type epd:ProcessDataSet .
+    ?processDataset epd:hasProcessInformation ?processInfo .
+    ?processInfo epd:hasKeyDataSetInformation ?keyInfo .
+    ?keyInfo epd:hasClassificationOrCategory ?classification .
+    ?classification epd:hasMainCategory ?mainCategory .
+}
+GROUP BY ?mainCategory
+ORDER BY DESC(?productCount)
+
+################################################################################################################################
+
+
+Query: Find all environmental indicators and their units
+Purpose: Provide an overview of all environmental metrics.
+Importance: Helps users understand available impact categories.
+
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX epd: <http://www.EpdLcaOntology.com/EpdLcaDataSetOntology/>
+
+SELECT DISTINCT ?indicatorLabel ?unitLabel
+WHERE {
+    {
+        ?specificIndicator rdf:type epd:EnvironmentalImpactIndicators .
+        ?specificIndicator rdfs:label ?indicatorLabel .
+        ?specificIndicator epd:hasUnit ?unit .
+        ?unit rdfs:label ?unitLabel .
+    }
+    UNION
+    {
+        ?specificIndicator rdf:type epd:InputIndicatorsDescribingResourceUse .
+        ?specificIndicator rdfs:label ?indicatorLabel .
+        ?specificIndicator epd:hasUnit ?unit .
+        ?unit rdfs:label ?unitLabel .
+    }
+    UNION
+    {
+        ?specificIndicator rdf:type epd:OutputIndicatorsDescribingWasteCategories .
+        ?specificIndicator rdfs:label ?indicatorLabel .
+        ?specificIndicator epd:hasUnit ?unit .
+        ?unit rdfs:label ?unitLabel .
+    }
+}
+ORDER BY ?indicatorLabel
+
+
+################################################################################################################################
+
+Query: Find all lifecycle phases and their definitions
+Purpose: Show the different phases used in lifecycle assessment.
+Importance: Provides framework for understanding lifecycle analysis.
+
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX epd: <http://www.EpdLcaOntology.com/EpdLcaDataSetOntology/>
+
+SELECT DISTINCT ?phaseLabel ?phaseComment
+WHERE {
+    ?phase rdf:type epd:LifeCycleModuleOrPhase .
+    ?phase rdfs:label ?phaseLabel .
+    OPTIONAL { ?phase rdfs:comment ?phaseComment . }
+}
+ORDER BY ?phaseLabel
+
+################################################################################################################################
+
+Query: Starting from ProcessDataSet
+
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX epd: <http://www.EpdLcaOntology.com/EpdLcaDataSetOntology/>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT DISTINCT ?processDataset 
+    ?name ?nameDetail ?uuid ?uri 
+    ?classificationDetail ?mainCategory ?subcategory ?productTypeValue
+    ?referenceFlow ?referenceYear 
+    ?techDescription ?techPurpose
+    ?indicatorLabel ?lifeCyclePhaseLabel ?indicatorValue ?unitLabel
+WHERE {
+    ?processDataset rdf:type epd:ProcessDataSet .
+    
+    ?processDataset epd:hasProcessInformation ?processInfo .
+    ?processInfo epd:hasKeyDataSetInformation ?keyInfo .
+    
+    OPTIONAL { ?keyInfo epd:hasName ?name . }
+    OPTIONAL { ?keyInfo epd:hasNameDetail ?nameDetail . }
+    OPTIONAL { ?keyInfo epd:hasUuid ?uuid . }
+    OPTIONAL { ?keyInfo epd:hasUri ?uri . }
+    
+    OPTIONAL {
+        ?keyInfo epd:hasClassificationOrCategory ?classification .
+        OPTIONAL { ?classification epd:hasClassificationDetail ?classificationDetail . }
+        OPTIONAL { ?classification epd:hasMainCategory ?mainCategory . }
+        OPTIONAL { ?classification epd:hasSubcategory ?subcategory . }
+        OPTIONAL { ?classification epd:hasProductTypeCategory ?productTypeValue . }
+    }
+    
+    OPTIONAL {
+        ?processInfo epd:hasQuantitativeReference ?quantRef .
+        OPTIONAL { ?quantRef epd:hasReferenceFlows ?referenceFlow . }
+    }
+    
+    OPTIONAL {
+        ?processInfo epd:hasTimeRepresentativeness ?timeRep .
+        OPTIONAL { ?timeRep epd:hasReferenceYear ?referenceYear . }
+    }
+    
+    OPTIONAL {
+        ?processInfo epd:hasTechnologicalRepresentativeness ?techRep .
+        OPTIONAL { ?techRep epd:hasTechnologyDescriptionIncludingBackgroundSystem ?techDescription . }
+        OPTIONAL { ?techRep epd:hasTechnicalPurposeOfProductOrProcess ?techPurpose . }
+    }
+    
+    OPTIONAL {
+        ?processDataset epd:hasEnvironmentalIndicator ?envIndicator .
+        
+        OPTIONAL {
+            ?envIndicator epd:hasEnvironmentalImpactIndicators ?impactIndicatorsCollection .
+            ?impactIndicatorsCollection epd:hasEnvironmentalImpactIndicators ?specificIndicator .
+            ?specificIndicator rdfs:label ?indicatorLabel .
+            ?specificIndicator epd:hasUnit ?unit .
+            ?unit rdfs:label ?unitLabel .
+            ?specificIndicator epd:hasLifeCyclePhaseValue ?lcPhaseValue .
+            ?lcPhaseValue epd:hasLifeCyclePhase ?lifeCyclePhase .
+            ?lifeCyclePhase rdfs:label ?lifeCyclePhaseLabel .
+            ?lcPhaseValue epd:hasValue ?indicatorValue .
+        }
+        
+        OPTIONAL {
+            ?envIndicator epd:hasIndicatorsOfLifeCycle ?lcIndicatorsCollection .
+            
+            OPTIONAL {
+                ?lcIndicatorsCollection epd:hasInputIndicatorsDescribingResourceUse ?inputIndicatorsCollection .
+                ?inputIndicatorsCollection epd:hasInputIndicatorsDescribingResourceUse ?specificInputIndicator .
+                ?specificInputIndicator rdfs:label ?indicatorLabel .
+                ?specificInputIndicator epd:hasUnit ?unit .
+                ?unit rdfs:label ?unitLabel .
+                ?specificInputIndicator epd:hasLifeCyclePhaseValue ?lcPhaseValue .
+                ?lcPhaseValue epd:hasLifeCyclePhase ?lifeCyclePhase .
+                ?lifeCyclePhase rdfs:label ?lifeCyclePhaseLabel .
+                ?lcPhaseValue epd:hasValue ?indicatorValue .
+            }
+            
+            OPTIONAL {
+                ?lcIndicatorsCollection epd:hasOutputIndicatorsDescribingWasteCategories ?outputIndicatorsCollection .
+                ?outputIndicatorsCollection epd:hasOutputIndicatorsDescribingWasteCategories ?specificOutputIndicator .
+                ?specificOutputIndicator rdfs:label ?indicatorLabel .
+                ?specificOutputIndicator epd:hasUnit ?unit .
+                ?unit rdfs:label ?unitLabel .
+                ?specificOutputIndicator epd:hasLifeCyclePhaseValue ?lcPhaseValue .
+                ?lcPhaseValue epd:hasLifeCyclePhase ?lifeCyclePhase .
+                ?lifeCyclePhase rdfs:label ?lifeCyclePhaseLabel .
+                ?lcPhaseValue epd:hasValue ?indicatorValue .
+            }
+        }
+    }
+}
+ORDER BY ?processDataset ?indicatorLabel ?lifeCyclePhaseLabel
+
+###############################################################################################################################
+
+Query: Starting from Product Type Category
+
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX epd: <http://www.EpdLcaOntology.com/EpdLcaDataSetOntology/>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT DISTINCT ?processDataset 
+    ?name ?nameDetail ?uuid ?uri 
+    ?classificationDetail ?mainCategory ?subcategory ?productTypeValue
+    ?referenceFlow ?referenceYear 
+    ?techDescription ?techPurpose
+    ?indicatorLabel ?lifeCyclePhaseLabel ?indicatorValue ?unitLabel
+WHERE {
+    ?classification epd:hasProductTypeCategory ?productTypeValue .
+    
+    ?keyInfo epd:hasClassificationOrCategory ?classification .
+    
+    ?processInfo epd:hasKeyDataSetInformation ?keyInfo .
+    
+    ?processDataset epd:hasProcessInformation ?processInfo .
+    ?processDataset rdf:type epd:ProcessDataSet .
+    
+    OPTIONAL { ?classification epd:hasClassificationDetail ?classificationDetail . }
+    OPTIONAL { ?classification epd:hasMainCategory ?mainCategory . }
+    OPTIONAL { ?classification epd:hasSubcategory ?subcategory . }
+    
+    OPTIONAL { ?keyInfo epd:hasName ?name . }
+    OPTIONAL { ?keyInfo epd:hasNameDetail ?nameDetail . }
+    OPTIONAL { ?keyInfo epd:hasUuid ?uuid . }
+    OPTIONAL { ?keyInfo epd:hasUri ?uri . }
+    
+    OPTIONAL {
+        ?processInfo epd:hasQuantitativeReference ?quantRef .
+        OPTIONAL { ?quantRef epd:hasReferenceFlows ?referenceFlow . }
+    }
+    
+    OPTIONAL {
+        ?processInfo epd:hasTimeRepresentativeness ?timeRep .
+        OPTIONAL { ?timeRep epd:hasReferenceYear ?referenceYear . }
+    }
+    
+    OPTIONAL {
+        ?processInfo epd:hasTechnologicalRepresentativeness ?techRep .
+        OPTIONAL { ?techRep epd:hasTechnologyDescriptionIncludingBackgroundSystem ?techDescription . }
+        OPTIONAL { ?techRep epd:hasTechnicalPurposeOfProductOrProcess ?techPurpose . }
+    }
+    
+    OPTIONAL {
+        ?processDataset epd:hasEnvironmentalIndicator ?envIndicator .
+        
+        OPTIONAL {
+            ?envIndicator epd:hasEnvironmentalImpactIndicators ?impactIndicatorsCollection .
+            ?impactIndicatorsCollection epd:hasEnvironmentalImpactIndicators ?specificIndicator .
+            ?specificIndicator rdfs:label ?indicatorLabel .
+            ?specificIndicator epd:hasUnit ?unit .
+            ?unit rdfs:label ?unitLabel .
+            ?specificIndicator epd:hasLifeCyclePhaseValue ?lcPhaseValue .
+            ?lcPhaseValue epd:hasLifeCyclePhase ?lifeCyclePhase .
+            ?lifeCyclePhase rdfs:label ?lifeCyclePhaseLabel .
+            ?lcPhaseValue epd:hasValue ?indicatorValue .
+        }
+        
+        OPTIONAL {
+            ?envIndicator epd:hasIndicatorsOfLifeCycle ?lcIndicatorsCollection .
+            
+            OPTIONAL {
+                ?lcIndicatorsCollection epd:hasInputIndicatorsDescribingResourceUse ?inputIndicatorsCollection .
+                ?inputIndicatorsCollection epd:hasInputIndicatorsDescribingResourceUse ?specificInputIndicator .
+                ?specificInputIndicator rdfs:label ?indicatorLabel .
+                ?specificInputIndicator epd:hasUnit ?unit .
+                ?unit rdfs:label ?unitLabel .
+                ?specificInputIndicator epd:hasLifeCyclePhaseValue ?lcPhaseValue .
+                ?lcPhaseValue epd:hasLifeCyclePhase ?lifeCyclePhase .
+                ?lifeCyclePhase rdfs:label ?lifeCyclePhaseLabel .
+                ?lcPhaseValue epd:hasValue ?indicatorValue .
+            }
+            
+            OPTIONAL {
+                ?lcIndicatorsCollection epd:hasOutputIndicatorsDescribingWasteCategories ?outputIndicatorsCollection .
+                ?outputIndicatorsCollection epd:hasOutputIndicatorsDescribingWasteCategories ?specificOutputIndicator .
+                ?specificOutputIndicator rdfs:label ?indicatorLabel .
+                ?specificOutputIndicator epd:hasUnit ?unit .
+                ?unit rdfs:label ?unitLabel .
+                ?specificOutputIndicator epd:hasLifeCyclePhaseValue ?lcPhaseValue .
+                ?lcPhaseValue epd:hasLifeCyclePhase ?lifeCyclePhase .
+                ?lifeCyclePhase rdfs:label ?lifeCyclePhaseLabel .
+                ?lcPhaseValue epd:hasValue ?indicatorValue .
+            }
+        }
+    }
+}
+ORDER BY ?productTypeValue ?processDataset ?indicatorLabel ?lifeCyclePhaseLabel
+
+
+###############################################################################################################################
+
+
+Query: Find products with technical details containing specific terms
+Purpose: Search for products by technical characteristics.
+Importance: Helps find products appropriate for specific applications.
+
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX epd: <http://www.EpdLcaOntology.com/EpdLcaDataSetOntology/>
+
+SELECT ?productName ?productTypeValue ?techDescription ?techPurpose
+WHERE {
+    ?processDataset rdf:type epd:ProcessDataSet .
+    ?processDataset epd:hasProcessInformation ?processInfo .
+    ?processInfo epd:hasKeyDataSetInformation ?keyInfo .
+    ?keyInfo epd:hasName ?productName .
+    
+    OPTIONAL {
+        ?keyInfo epd:hasClassificationOrCategory ?classification .
+        ?classification epd:hasProductTypeCategory ?productTypeValue .
+    }
+    
+    ?processInfo epd:hasTechnologicalRepresentativeness ?techRep .
+    {
+        ?techRep epd:hasTechnologyDescriptionIncludingBackgroundSystem ?techDescription .
+        FILTER(CONTAINS(LCASE(?techDescription), "insulation"))
+    }
+    UNION
+    {
+        ?techRep epd:hasTechnicalPurposeOfProductOrProcess ?techPurpose .
+        FILTER(CONTAINS(LCASE(?techPurpose), "insulation"))
+    }
+}
+ORDER BY ?productName
+
+################################################################################################################################
+
+
+Query: Find products with biogenic carbon content
+Purpose: Identify products with carbon sequestration properties.
+Importance: Relevant for carbon footprint calculations and climate impact.
+
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX epd: <http://www.EpdLcaOntology.com/EpdLcaDataSetOntology/>
+
+SELECT ?productName ?productTypeValue ?biogenicCarbonContent
+WHERE {
+    ?processDataset rdf:type epd:ProcessDataSet .
+    ?processDataset epd:hasProcessInformation ?processInfo .
+    ?processInfo epd:hasKeyDataSetInformation ?keyInfo .
+    ?keyInfo epd:hasName ?productName .
+    
+    OPTIONAL {
+        ?keyInfo epd:hasClassificationOrCategory ?classification .
+        ?classification epd:hasProductTypeCategory ?productTypeValue .
+    }
+    
+    ?processInfo epd:hasQuantitativeReference ?quantRef .
+    ?quantRef epd:hasBiogenicCarbonContent ?biogenicCarbonContent .
+    
+    FILTER(?biogenicCarbonContent != "")
+}
+ORDER BY ?productName
+
+###############################################################################################################################
+
