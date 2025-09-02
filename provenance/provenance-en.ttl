@@ -1,0 +1,13 @@
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix dc: <http://purl.org/dc/terms/> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix : <> .
+<http://www.EpdLcaOntology.com/EpdLcaDataSetOntology/0.1> a prov:Entity;
+	 dc:title "EPD Database Ontology";
+	 prov:wasAttributedTo <https://dc.rwth-aachen.de/en/apollos-bangalu-2/>;
+	 dc:creator <https://dc.rwth-aachen.de/en/apollos-bangalu-2/>;
+	 prov:wasAttributedTo <https://dc.rwth-aachen.de/en/jakob-beetz-2/>;
+	 dc:contributor <https://dc.rwth-aachen.de/en/jakob-beetz-2/>;
+	 prov:wasAttributedTo <https://github.com/dgarijo/Widoco/>,<http://www.essepuntato.it/lode/>;
+	 prov:specializationOf <http://www.EpdLcaOntology.com/EpdLcaDataSetOntology>;
+.
